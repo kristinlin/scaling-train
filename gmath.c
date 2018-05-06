@@ -9,44 +9,87 @@
 //lighting functions
 color get_lighting( double *normal, double *view, color alight, double light[2][3], double *areflect, double *dreflect, double *sreflect) {
   color i;
+
+  //normalize
+  normalize(normal);
+  normalize(light[LOCATION]);
+  normalize(view);
+
+  //calc the different lightings
   color a = calculate_ambient(alight, areflect);
-  color d = calculate_diffuse(light, dereflect, normal);
+  color d = calculate_diffuse(light, dreflect, normal);
   color s = calculate_specular(light, sreflect, view, normal);
 
-  //  i.red = (a.red + d.red + s.red > 255 ? 
-				    
+  //add up the different lighting values
+  i.red = a.red + d.red + s.red;
+  i.blue = a.blue + d.blue + s.blue;
+  i.green = a.green + d.green + s.green;
+
+  //put in range of 0, 255
+  limit_color(&i);
+  
   return i;
 }
 
+//Ia = A*Ka
 color calculate_ambient(color alight, double *areflect ) {
   color a;
+  a.red = alight.red * areflect[RED];
+  a.green = alight.green * areflect[GREEN];
+  a.blue = alight.blue * areflect[BLUE];
   return a;
 }
 
+
+//Id = P*Kl(L . N)
 color calculate_diffuse(double light[2][3], double *dreflect, double *normal ) {
   color d;
+  double dot = dot_product(light[LOCATION], normal);
+  d.red = light[COLOR][RED]*dreflect[RED]*dot;
+  d.blue = light[COLOR][BLUE]*dreflect[BLUE]*dot;
+  d.green = light[COLOR][GREEN]*dreflect[GREEN]*dot;
   return d;
 }
 
+//Is = P*Ks*[(2(N.L)N - L) . V]^exp
 color calculate_specular(double light[2][3], double *sreflect, double *view, double *normal ) {
-
   color s;
+  double r[3];  
+  double coef = 2*dot_product(normal,light[LOCATION]);
+  r[0] = normal[0]*coef - light[LOCATION][0];
+  r[1] = normal[1]*coef - light[LOCATION][1];
+  r[2] = normal[2]*coef - light[LOCATION][2];
+  double cos_alpha = dot_product(r, view);
+  double ca_exp = (cos_alpha < 0 ? 0:pow(cos_alpha, SPECULAR_EXP));
+  s.red = light[COLOR][RED]*sreflect[RED]*ca_exp;
+  s.blue = light[COLOR][BLUE]*sreflect[BLUE]*ca_exp;
+  s.green = light[COLOR][GREEN]*sreflect[GREEN]*ca_exp;
   return s;
 }
 
 
 //limit each component of c to a max of 255
 void limit_color( color * c ) {
+  if (c->red > 255) {c->red = 255;}
+  if (c->blue > 255) {c->blue = 255;}
+  if (c->green > 255) {c->green = 255;}
 }
 
 //vector functions
 //normalize vetor, should modify the parameter
 void normalize( double *vector ) {
+  double mag = pow(vector[0]*vector[0] +
+		   vector[1]*vector[1] +
+		   vector[2]*vector[2],
+		   0.5);
+  vector[0] = vector[0]/mag;
+  vector[1] = vector[1]/mag;
+  vector[2] = vector[2]/mag;
 }
 
 //Return the dot porduct of a . b
 double dot_product( double *a, double *b ) {
-  return 0;
+  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
 }
 
 double *calculate_normal(struct matrix *polygons, int i) {
